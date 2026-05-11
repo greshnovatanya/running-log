@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Running Log</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f13; color: #e8e8f0; min-height: 100vh; }
+
+/* NAV */
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 28px 0; }
+.nav h1 { font-size: 20px; font-weight: 700; }
+.nav-tabs { display: flex; gap: 4px; background: #13131a; border-radius: 10px; padding: 4px; }
+.nav-tabs button { background: none; border: none; color: #555; font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 7px; cursor: pointer; transition: all .15s; }
+.nav-tabs button.active { background: #1e1e2e; color: #e8e8f0; }
+
+/* UPLOAD ZONE */
+.upload-area { margin: 20px 28px; border: 2px dashed #2a2a3a; border-radius: 14px; padding: 32px; text-align: center; cursor: pointer; transition: all .2s; background: #13131a; position: relative; }
+.upload-area:hover, .upload-area.drag { border-color: #6c63ff; background: #16162a; }
+.upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-area .ico { font-size: 32px; margin-bottom: 8px; }
+.upload-area h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.upload-area p { color: #555; font-size: 12px; }
+.upload-bar { margin: 0 28px 16px; background: #13131a; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #666; display: none; }
+
+/* PERIOD SWITCHER */
+.period-bar { display: flex; gap: 4px; margin: 0 28px 20px; }
+.period-bar button { background: #13131a; border: 1px solid #1e1e2e; color: #555; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; cursor: pointer; transition: all .15s; }
+.period-bar button.active { background: #6c63ff; border-color: #6c63ff; color: #fff; }
+
+/* SUMMARY CARDS */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; margin: 0 28px 24px; }
+.card { background: #13131a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 14px; }
+.card .lbl { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.card .val { font-size: 22px; font-weight: 700; }
+.card .unit { font-size: 11px; color: #666; margin-left: 2px; }
+
+/* CHARTS */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 28px 24px; }
+@media(max-width:600px){.charts{grid-template-columns:1fr;}}
+.chart-box { background: #13131a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 16px; }
+.chart-box h4 { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+.chart-box canvas { height: 160px !important; }
+
+/* WORKOUT LIST */
+.wlist { margin: 0 28px 28px; }
+.wlist table { width: 100%; border-collapse: collapse; background: #13131a; border-radius: 12px; overflow: hidden; border: 1px solid #1e1e2e; }
+.wlist th { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: .5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid #1e1e2e; }
+.wlist td { font-size: 13px; padding: 11px 14px; border-bottom: 1px solid #0d0d12; cursor: pointer; }
+.wlist tr:last-child td { border-bottom: none; }
+.wlist tbody tr:hover td { background: #16161f; }
+.wlist .date { color: #888; font-size: 11px; }
+.tag { display:inline-block; padding:2px 7px; border-radius:20px; font-size:10px; font-weight:700; background:#1a1a2a; color:#6c63ff; }
+
+/* DETAIL */
+.detail { margin: 0 28px 28px; }
+.back-btn { background: none; border: none; color: #6c63ff; font-size: 13px; cursor: pointer; margin-bottom: 16px; padding: 0; display: flex; align-items: center; gap: 4px; }
+.d-header { margin-bottom: 20px; }
+.d-header h2 { font-size: 18px; font-weight: 700; }
+.d-header p { color: #555; font-size: 12px; margin-top: 2px; }
+.d-cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(110px,1fr)); gap: 8px; margin-bottom: 20px; }
+.d-chart { background: #13131a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.d-chart h4 { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+.d-chart canvas { height: 160px !important; }
+.laps-tbl { width:100%; border-collapse:collapse; background:#13131a; border-radius:12px; overflow:hidden; border:1px solid #1e1e2e; }
+.laps-tbl th { font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;text-align:left;border-bottom:1px solid #1e1e2e; }
+.laps-tbl td { font-size:12px;padding:9px 12px;border-bottom:1px solid #0d0d12; }
+.laps-tbl tr:last-child td { border-bottom:none; }
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;}
+.b0{background:#2a1a1a;color:#f44336;}.b1{background:#1a1a2a;color:#6c63ff;}.b2{background:#1a2a1a;color:#4caf50;}.b3{background:#1a2a2a;color:#00bcd4;}.b4{background:#2a2a1a;color:#ff9800;}
+
+.empty { text-align:center; padding: 60px 28px; color: #444; font-size: 14px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <h1>🏃 Running Log</h1>
+  <div class="nav-tabs">
+    <button class="active" onclick="setTab('dashboard')">Дашборд</button>
+    <button onclick="setTab('list')">Тренировки</button>
+  </div>
+</div>
+
+<div class="upload-area" id="uploadArea">
+  <input type="file" id="fileInput" accept=".fit,.FIT" multiple>
+  <div class="ico">📁</div>
+  <h3>Загрузи .fit файлы</h3>
+  <p>Выбери несколько файлов сразу (Cmd+A) или перетащи</p>
+</div>
+<div class="upload-bar" id="uploadBar"></div>
+
+<!-- DASHBOARD -->
+<div id="dashView">
+  <div class="period-bar" id="periodBar">
+    <button class="active" onclick="setPeriod('week')">Неделя</button>
+    <button onclick="setPeriod('month')">Месяц</button>
+    <button onclick="setPeriod('all')">Всё время</button>
+  </div>
+  <div class="cards" id="summaryCards"></div>
+  <div class="charts">
+    <div class="chart-box"><h4>Километраж</h4><canvas id="kmChart"></canvas></div>
+    <div class="chart-box"><h4>Средний темп</h4><canvas id="paceChart"></canvas></div>
+    <div class="chart-box"><h4>Средний пульс</h4><canvas id="hrChart"></canvas></div>
+    <div class="chart-box"><h4>Калории</h4><canvas id="calsChart"></canvas></div>
+  </div>
+  <div class="empty hidden" id="dashEmpty">Загрузи .fit файлы чтобы увидеть прогресс</div>
+</div>
+
+<!-- LIST -->
+<div id="listView" class="hidden">
+  <div class="wlist" id="wlistWrap">
+    <table>
+      <thead><tr><th>Дата</th><th>Дистанция</th><th>Время</th><th>Темп</th><th>Пульс</th><th>Калории</th></tr></thead>
+      <tbody id="wlistBody"></tbody>
+    </table>
+  </div>
+  <div class="empty hidden" id="listEmpty">Нет загруженных тренировок</div>
+</div>
+
+<!-- DETAIL -->
+<div id="detailView" class="hidden detail">
+  <button class="back-btn" onclick="closeDetail()">← Назад</button>
+  <div class="d-header"><h2 id="dTitle"></h2><p id="dSub"></p></div>
+  <div class="d-cards" id="dCards"></div>
+  <div class="d-chart" id="dHrWrap"><h4>Пульс</h4><canvas id="dHrChart"></canvas></div>
+  <div class="d-chart" id="dPaceWrap"><h4>Темп</h4><canvas id="dPaceChart"></canvas></div>
+  <div id="dLapsWrap"></div>
+</div>
+
+<script>
+// ─── utils ───────────────────────────────────────────────────────────────────
+const mmss = s => { if (!s||isNaN(s)||s<=0) return '--'; const m=Math.floor(s/60),sc=Math.round(s%60); return `${m}:${sc.toString().padStart(2,'0')}`; };
+const spk = mps => mps&&mps>0.1 ? 1000/mps : null;
+const paceStr = mps => { const p=spk(mps); return p?mmss(p)+'/км':'--'; };
+const fmtDate = ts => { const d=new Date(ts*1000); return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'}); };
+const weekKey = ts => { const d=new Date(ts*1000); d.setHours(0,0,0,0); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().slice(0,10); };
+const monthKey = ts => { const d=new Date(ts*1000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+
+// ─── FIT parser ───────────────────────────────────────────────────────────────
+function parseFit(buf) {
+  const u8=new Uint8Array(buf), dv=new DataView(buf);
+  const hdrSize=u8[0], dataSize=dv.getUint32(4,true);
+  const FMAP = {
+    18:{253:['ts',1],7:['elapsed',1000],8:['timer',1000],9:['dist',100],11:['cals',1],13:['avg_spd',1000],14:['max_spd',1000],15:['avg_hr',1],16:['max_hr',1],22:['cals',1],24:['ascent',1]},
+    19:{253:['ts',1],7:['elapsed',1000],8:['timer',1000],9:['dist',100],13:['avg_spd',1000],15:['avg_hr',1],16:['max_hr',1],25:['intensity',1],26:['trigger',1]},
+    20:{253:['ts',1],0:['lat',1],1:['lon',1],3:['hr',1],4:['cad',1],5:['dist',100],6:['spd',1000],7:['pwr',1]},
+  };
+  const defs={}, recs=[], laps=[], sess=[];
+  let pos=hdrSize;
+  const end=Math.min(hdrSize+dataSize,buf.byteLength);
+  while(pos<end-1){
+    if(pos>=buf.byteLength) break;
+    const hdr=u8[pos++];
+    if(hdr&0x80){pos+=3;continue;}
+    const isDef=(hdr&0x40)!==0, hasDev=(hdr&0x20)!==0, local=hdr&0x0F;
+    if(isDef){
+      if(pos+5>end) break;
+      pos++;
+      const le=u8[pos++]===0;
+      const gmsg=le?dv.getUint16(pos,true):dv.getUint16(pos,false); pos+=2;
+      const nf=u8[pos++];
+      const fields=[];
+      for(let i=0;i<nf;i++){if(pos+3>end)break;const fn=u8[pos++],fs=u8[pos++],fb=u8[pos++];const sg=[0x01,0x03,0x05,0x85,0x83,0x81].includes(fb&0x9F);fields.push({fn,fs,sg});}
+      if(hasDev){if(pos<end){const nd=u8[pos++];for(let i=0;i<nd&&pos+3<=end;i++)pos+=3;}}
+      defs[local]={gmsg,le,fields};
+    } else {
+      const def=defs[local]; if(!def){pos++;continue;}
+      const {gmsg,le,fields}=def, fm=FMAP[gmsg]||{}, obj={_g:gmsg};
+      for(const f of fields){
+        if(pos+f.fs>end){pos+=f.fs;continue;}
+        let raw;
+        if(f.fs===1) raw=f.sg?dv.getInt8(pos):dv.getUint8(pos);
+        else if(f.fs===2) raw=f.sg?dv.getInt16(pos,le):dv.getUint16(pos,le);
+        else if(f.fs===4) raw=f.sg?dv.getInt32(pos,le):dv.getUint32(pos,le);
+        else{pos+=f.fs;continue;}
+        pos+=f.fs;
+        const mx=f.fs===1?0xFF:f.fs===2?0xFFFF:0xFFFFFFFF;
+        if(raw===mx||raw===mx-1) continue;
+        const fd=fm[f.fn]; if(fd){const[name,sc]=fd;const val=sc!==1?raw/sc:raw;if(val!==0||obj[name]===undefined)obj[name]=val;}
+      }
+      if(gmsg===20&&obj.ts) recs.push(obj);
+      else if(gmsg===19) laps.push(obj);
+      else if(gmsg===18) sess.push(obj);
+    }
+  }
+  return {recs,laps,sess};
+}
+
+function extractWorkout(parsed, filename) {
+  const {recs,laps,sess}=parsed;
+  // pick best session
+  const good=sess.filter(s=>{
+    const d=s.dist,e=s.elapsed||s.timer;
+    if(!d||!e) return false;
+    if(d<100||d>200000) return false;
+    if(e<60||e>86400) return false;
+    const p=(e/d)*1000; return p>60&&p<1500;
+  });
+  const s=(good.length?good:sess).sort((a,b)=>(b.dist||0)-(a.dist||0))[0]||{};
+  const distM=s.dist||0;
+  const distKm=distM/1000;
+  const elapsed=s.elapsed||s.timer||0;
+  const avgSpd=(distM&&elapsed)?distM/elapsed:null;
+  const hrRecs=recs.filter(r=>r.hr>30&&r.hr<250);
+  const avgHR=s.avg_hr||(hrRecs.length?Math.round(hrRecs.reduce((a,r)=>a+r.hr,0)/hrRecs.length):null);
+  const maxHR=s.max_hr||(hrRecs.length?Math.max(...hrRecs.map(r=>r.hr)):null);
+  const cals=s.cals||null;
+  // timestamp: use first record ts or session ts
+  const ts=recs[0]?.ts||s.ts||0;
+  const name=filename.replace(/\.fit$/i,'').replace(/_/g,' ');
+  return {name,filename,ts,distKm,elapsed,avgSpd,avgHR,maxHR,cals,recs,laps};
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let workouts = [];    // sorted by ts desc
+let period = 'week';
+let activeTab = 'dashboard';
+let detailIdx = null;
+let charts = {};
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+function saveWorkouts() {
+  try {
+    const slim = workouts.map(w=>({...w, recs:w.recs.map(r=>({ts:r.ts,hr:r.hr,spd:r.spd})), laps:w.laps}));
+    localStorage.setItem('running_log_v2', JSON.stringify(slim));
+  } catch(e){}
+}
+async function loadWorkouts() {
+  try {
+    const raw = localStorage.getItem('running_log_v2');
+    if(raw) { workouts=JSON.parse(raw); workouts.sort((a,b)=>b.ts-a.ts); }
+  } catch(e){}
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function setTab(tab) {
+  activeTab=tab;
+  document.querySelectorAll('.nav-tabs button').forEach((b,i)=>b.classList.toggle('active',['dashboard','list'][i]===tab));
+  document.getElementById('dashView').classList.toggle('hidden', tab!=='dashboard');
+  document.getElementById('listView').classList.toggle('hidden', tab!=='list');
+  document.getElementById('detailView').classList.toggle('hidden', true);
+  if(tab==='dashboard') renderDashboard();
+  if(tab==='list') renderList();
+}
+
+function setPeriod(p) {
+  period=p;
+  document.querySelectorAll('.period-bar button').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().startsWith(p==='week'?'нед':p==='month'?'мес':'всё')||b.textContent==='Неделя'&&p==='week'||b.textContent==='Месяц'&&p==='month'||b.textContent==='Всё время'&&p==='all'));
+  renderDashboard();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+function renderDashboard() {
+  if(!workouts.length){
+    document.getElementById('dashEmpty').classList.remove('hidden');
+    document.getElementById('summaryCards').innerHTML='';
+    ['kmChart','paceChart','hrChart','calsChart'].forEach(id=>{if(charts[id]){charts[id].destroy();delete charts[id];}});
+    return;
+  }
+  document.getElementById('dashEmpty').classList.add('hidden');
+
+  // group by period
+  const grouped={};
+  for(const w of workouts){
+    const key=period==='week'?weekKey(w.ts):period==='month'?monthKey(w.ts):'all';
+    if(!grouped[key]) grouped[key]={km:0,paces:[],hrs:[],cals:0,count:0};
+    grouped[key].km+=w.distKm;
+    if(w.avgSpd) grouped[key].paces.push(spk(w.avgSpd));
+    if(w.avgHR) grouped[key].hrs.push(w.avgHR);
+    if(w.cals) grouped[key].cals+=w.cals;
+    grouped[key].count++;
+  }
+  const keys=Object.keys(grouped).sort();
+  const labels=keys.map(k=>{
+    if(k==='all') return 'Всё';
+    if(period==='month'){const[y,m]=k.split('-');return new Date(y,m-1).toLocaleDateString('ru-RU',{month:'short',year:'2-digit'});}
+    const d=new Date(k); return `${d.getDate()} ${d.toLocaleDateString('ru-RU',{month:'short'})}`;
+  });
+  const kms=keys.map(k=>+grouped[k].km.toFixed(2));
+  const paces=keys.map(k=>grouped[k].paces.length?+(grouped[k].paces.reduce((a,b)=>a+b,0)/grouped[k].paces.length/60).toFixed(3):null);
+  const hrs=keys.map(k=>grouped[k].hrs.length?Math.round(grouped[k].hrs.reduce((a,b)=>a+b,0)/grouped[k].hrs.length):null);
+  const cals=keys.map(k=>grouped[k].cals||null);
+
+  // summary totals
+  const totKm=workouts.reduce((a,w)=>a+w.distKm,0);
+  const totTime=workouts.reduce((a,w)=>a+w.elapsed,0);
+  const allPaces=workouts.filter(w=>w.avgSpd).map(w=>spk(w.avgSpd));
+  const avgPace=allPaces.length?allPaces.reduce((a,b)=>a+b,0)/allPaces.length:null;
+  const allHR=workouts.filter(w=>w.avgHR).map(w=>w.avgHR);
+  const avgHR=allHR.length?Math.round(allHR.reduce((a,b)=>a+b,0)/allHR.length):null;
+  const totCals=workouts.reduce((a,w)=>a+(w.cals||0),0);
+
+  document.getElementById('summaryCards').innerHTML=[
+    {lbl:'Тренировок',val:workouts.length,unit:''},
+    {lbl:'Всего км',val:totKm.toFixed(1),unit:'км'},
+    {lbl:'Общее время',val:mmss(totTime),unit:''},
+    {lbl:'Ср. темп',val:avgPace?mmss(avgPace):'--',unit:'/км'},
+    {lbl:'Ср. пульс',val:avgHR||'--',unit:'bpm'},
+    {lbl:'Калории',val:totCals||'--',unit:'ккал'},
+  ].map(c=>`<div class="card"><div class="lbl">${c.lbl}</div><div class="val">${c.val}<span class="unit"> ${c.unit}</span></div></div>`).join('');
+
+  const co={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{ticks:{color:'#555',maxTicksLimit:8},grid:{color:'#1a1a2a'}},y:{ticks:{color:'#555'},grid:{color:'#1a1a2a'}}}};
+
+  mkChart('kmChart','bar',labels,kms,'#6c63ff','rgba(108,99,255,0.7)',{...co,scales:{x:{ticks:{color:'#555',maxTicksLimit:8},grid:{color:'#1a1a2a'}},y:{ticks:{color:'#555'},grid:{color:'#1a1a2a'},title:{display:true,text:'км',color:'#555'}}}});
+  mkChart('paceChart','line',labels,paces,'#4caf50','rgba(76,175,80,0.1)',{...co,scales:{x:{ticks:{color:'#555',maxTicksLimit:8},grid:{color:'#1a1a2a'}},y:{reverse:true,ticks:{color:'#555',callback:v=>{const m=Math.floor(v),s=Math.round((v-m)*60);return `${m}:${s.toString().padStart(2,'0')}`;} },grid:{color:'#1a1a2a'}}}});
+  mkChart('hrChart','line',labels,hrs,'#f44336','rgba(244,67,54,0.1)',{...co});
+  mkChart('calsChart','bar',labels,cals,'#ff9800','rgba(255,152,0,0.7)',{...co});
+}
+
+function mkChart(id,type,labels,data,color,bg,options){
+  if(charts[id]){charts[id].destroy();}
+  charts[id]=new Chart(document.getElementById(id),{
+    type,
+    data:{labels,datasets:[{data,borderColor:color,backgroundColor:bg,borderWidth:type==='line'?2:0,pointRadius:type==='line'?3:0,fill:type==='line',tension:0.3,borderRadius:type==='bar'?4:0}]},
+    options
+  });
+}
+
+// ─── LIST ─────────────────────────────────────────────────────────────────────
+function renderList() {
+  const empty=document.getElementById('listEmpty'), wrap=document.getElementById('wlistWrap');
+  if(!workouts.length){empty.classList.remove('hidden');wrap.classList.add('hidden');return;}
+  empty.classList.add('hidden');wrap.classList.remove('hidden');
+  document.getElementById('wlistBody').innerHTML=workouts.map((w,i)=>`
+    <tr onclick="openDetail(${i})">
+      <td><div>${w.name}</div><div class="date">${fmtDate(w.ts)}</div></td>
+      <td><b>${w.distKm.toFixed(2)}</b> км</td>
+      <td>${mmss(w.elapsed)}</td>
+      <td>${paceStr(w.avgSpd)}</td>
+      <td>${w.avgHR?w.avgHR+' bpm':'--'}</td>
+      <td>${w.cals?w.cals+' ккал':'--'}</td>
+    </tr>`).join('');
+}
+
+// ─── DETAIL ───────────────────────────────────────────────────────────────────
+function openDetail(i) {
+  detailIdx=i;
+  const w=workouts[i];
+  document.getElementById('dashView').classList.add('hidden');
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('detailView').classList.remove('hidden');
+
+  document.getElementById('dTitle').textContent=w.name;
+  document.getElementById('dSub').textContent=fmtDate(w.ts);
+
+  document.getElementById('dCards').innerHTML=[
+    {lbl:'Дистанция',val:w.distKm.toFixed(2),unit:'км'},
+    {lbl:'Время',val:mmss(w.elapsed),unit:''},
+    {lbl:'Темп',val:paceStr(w.avgSpd),unit:''},
+    {lbl:'Ср. пульс',val:w.avgHR||'--',unit:'bpm'},
+    {lbl:'Макс. пульс',val:w.maxHR||'--',unit:'bpm'},
+    {lbl:'Калории',val:w.cals||'--',unit:'ккал'},
+  ].map(c=>`<div class="card"><div class="lbl">${c.lbl}</div><div class="val">${c.val}<span class="unit"> ${c.unit}</span></div></div>`).join('');
+
+  const hrRecs=w.recs.filter(r=>r.hr>30&&r.hr<250);
+  const hrWrap=document.getElementById('dHrWrap');
+  if(hrRecs.length>5){
+    hrWrap.classList.remove('hidden');
+    if(charts.dHr){charts.dHr.destroy();}
+    const t0=hrRecs[0].ts;
+    charts.dHr=new Chart(document.getElementById('dHrChart'),{
+      type:'line',
+      data:{labels:hrRecs.map(r=>Math.round((r.ts-t0)/60)),datasets:[{data:hrRecs.map(r=>r.hr),borderColor:'#f44336',backgroundColor:'rgba(244,67,54,0.1)',borderWidth:2,pointRadius:0,fill:true,tension:0.3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',maxTicksLimit:8},grid:{color:'#1a1a2a'}},y:{ticks:{color:'#555'},grid:{color:'#1a1a2a'},min:Math.max(40,Math.min(...hrRecs.map(r=>r.hr))-10)}}}
+    });
+  } else hrWrap.classList.add('hidden');
+
+  const sRecs=w.recs.filter(r=>r.spd>0.3&&r.spd<10&&r.ts);
+  const pWrap=document.getElementById('dPaceWrap');
+  if(sRecs.length>5){
+    pWrap.classList.remove('hidden');
+    if(charts.dPace){charts.dPace.destroy();}
+    const win=15,t0=sRecs[0].ts;
+    const smooth=sRecs.map((_,i)=>{const sl=sRecs.slice(Math.max(0,i-win),i+win);return sl.reduce((a,x)=>a+x.spd,0)/sl.length;});
+    charts.dPace=new Chart(document.getElementById('dPaceChart'),{
+      type:'line',
+      data:{labels:sRecs.map(r=>Math.round((r.ts-t0)/60)),datasets:[{data:smooth.map(sp=>+(spk(sp)/60).toFixed(3)),borderColor:'#6c63ff',backgroundColor:'rgba(108,99,255,0.1)',borderWidth:2,pointRadius:0,fill:true,tension:0.3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#555',maxTicksLimit:8},grid:{color:'#1a1a2a'}},y:{reverse:true,ticks:{color:'#555',callback:v=>{const m=Math.floor(v),s=Math.round((v-m)*60);return `${m}:${s.toString().padStart(2,'0')}`;} },grid:{color:'#1a1a2a'}}}}
+    });
+  } else pWrap.classList.add('hidden');
+
+  const lWrap=document.getElementById('dLapsWrap');
+  if(w.laps&&w.laps.length){
+    const im={0:['b0','Активно'],1:['b1','Трусца'],2:['b2','Разминка'],3:['b3','Заминка']};
+    lWrap.innerHTML=`<h4 style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Отрезки</h4>
+    <table class="laps-tbl"><thead><tr><th>#</th><th>Тип</th><th>Дист.</th><th>Время</th><th>Темп</th><th>Пульс</th></tr></thead>
+    <tbody>${w.laps.map((l,i)=>{
+      const[cls,label]=im[l.intensity]??['b4',`Отрезок ${i+1}`];
+      const lDistM=l.dist||0;
+      return `<tr><td style="color:#555">${i+1}</td><td><span class="badge ${cls}">${label}</span></td><td>${lDistM>0?(lDistM/1000).toFixed(2)+' км':'--'}</td><td>${mmss(l.elapsed||l.timer)}</td><td>${l.avg_spd?mmss(spk(l.avg_spd))+'/км':'--'}</td><td>${l.avg_hr?Math.round(l.avg_hr)+' bpm':'--'}</td></tr>`;
+    }).join('')}</tbody></table>`;
+  } else lWrap.innerHTML='';
+}
+
+function closeDetail() {
+  document.getElementById('detailView').classList.add('hidden');
+  if(activeTab==='list'){document.getElementById('listView').classList.remove('hidden');renderList();}
+  else{document.getElementById('dashView').classList.remove('hidden');renderDashboard();}
+}
+
+// ─── FILE LOADING ─────────────────────────────────────────────────────────────
+async function handleFiles(files) {
+  const arr=Array.from(files).filter(f=>f.name.match(/\.fit$/i));
+  if(!arr.length) return;
+  const bar=document.getElementById('uploadBar');
+  bar.style.display='block'; bar.textContent=`Загружаю 0 / ${arr.length}...`;
+  let done=0, added=0;
+  for(const file of arr){
+    await new Promise(res=>{
+      const r=new FileReader();
+      r.onload=e=>{
+        try{
+          const parsed=parseFit(e.target.result);
+          const w=extractWorkout(parsed,file.name);
+          if(w.distKm>0.05){
+            // dedup by ts
+            if(!workouts.find(x=>Math.abs(x.ts-w.ts)<10)) { workouts.push(w); added++; }
+          }
+        }catch(ex){console.error(file.name,ex);}
+        done++;
+        bar.textContent=`Загружаю ${done} / ${arr.length}...`;
+        res();
+      };
+      r.readAsArrayBuffer(file);
+    });
+  }
+  workouts.sort((a,b)=>b.ts-a.ts);
+  await saveWorkouts();
+  bar.textContent=`Добавлено ${added} тренировок (всего ${workouts.length})`;
+  setTimeout(()=>{bar.style.display='none';},3000);
+  if(activeTab==='dashboard') renderDashboard();
+  if(activeTab==='list') renderList();
+}
+
+const ua=document.getElementById('uploadArea'), fi=document.getElementById('fileInput');
+fi.addEventListener('change',e=>handleFiles(e.target.files));
+ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('drag');});
+ua.addEventListener('dragleave',()=>ua.classList.remove('drag'));
+ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('drag');handleFiles(e.dataTransfer.files);});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async()=>{
+  await loadWorkouts();
+  renderDashboard();
+})();
+</script>
+</body>
+</html>
